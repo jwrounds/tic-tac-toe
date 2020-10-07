@@ -53,6 +53,12 @@ class Board
           \n"
   end
 
+  def is_full?
+    self.game_board.reduce(false) do |memo, row|
+      row.include? false ? memo : true
+    end
+  end
+
 end
 
 class Token
@@ -65,34 +71,36 @@ class Token
 end
 
 class Player 
-  attr_accessor :tokens
+  attr_accessor :tokens, :move_made
   attr_reader :name
 
   def initialize name 
     @name = name
     @tokens = []
+    @move_made = false
   end
 
   def place_token space_key_one, space_key_two, board
     token = self.tokens.shift
     if board[space_key_one][space_key_two]
-      puts "Please select an empty space.
+      puts "\nPlease select an empty space.
             \n"
     else  
       board[space_key_one][space_key_two] = token
+      @move_made = true
     end
   end
 
 end
 
 class Game
-  attr_reader :board, :players
-  attr_accessor :active_player, :winner
+  attr_reader :board 
+  attr_accessor :active_player, :winner, :players
 
   def initialize player_one, player_two, board
     @players = [player_one, player_two]
-    @winner = nil
-    @board = board.game_board
+    @winner = false
+    @board = board
     @active_player = player_one
     self.give_tokens player_one, "X"
     self.give_tokens player_two, "O"
@@ -104,27 +112,28 @@ class Game
     end
   end
 
-  def switch_players players
-    players.each do |player|
-      unless self.active_player == player
-        self.active_player = player
+  def switch_players
+    if self.active_player.move_made 
+      if self.active_player == self.players.first
+        self.active_player = self.players.last
+      else
+        self.active_player = self.players.first
       end
     end
   end
 
   def check_horizontal board
-    winner = false
     board.each do |row|
       # reduces each row to either the token that occupies each space, or false if no winner
-      winner = row.reduce do |memo, space|
+      winner = row.reduce do |memo, space|  
         if memo && space
-          memo.symbol == space.symbol ? space : false
+          memo.symbol == space.symbol ? memo = space : false
         end
       end
-    end
-    if winner
-      return winner.player
-    end
+      if winner
+        return winner.player
+      end
+    end 
     false
   end
 
@@ -215,24 +224,40 @@ class Game
 
   def check_winner
     self.winner = 
-      self.check_horizontal(self.board) || self.check_vertical(self.board) || self.check_diagonal(self.board)
+      self.check_horizontal(self.board.game_board) || self.check_vertical(self.board.game_board) || self.check_diagonal(self.board.game_board)
     if self.winner
+      self.board.render_board
       puts "#{self.winner.name} wins!"
+    elsif self.board.is_full?
+      puts "Tie game! No one wins!"
     end
   end
 
 end
 
-board = Board.new 
-player_one = Player.new "Player1"
-player_two = Player.new "Player2"
-game = Game.new player_one, player_two, board
+def play
+    puts "Enter player one's name:"
+    player_one_name = gets 
+    player_one = Player.new player_one_name.chomp
+    
+    puts "Enter player two's name:"
+    player_two_name = gets 
+    player_two = Player.new player_two_name.chomp
+    
+    board = Board.new 
+    game = Game.new player_one, player_two, board
+    
 
-player_two.place_token 0, 0, board.game_board
-player_two.place_token 1, 1, board.game_board
-player_two.place_token 2, 2, board.game_board
-player_one.place_token 0, 2, board.game_board
-player_one.place_token 2, 0, board.game_board
+    until game.winner
+      board.render_board
+      puts "Enter the coordinates of the space you'd like place your token. Exmple: 0-0 or 00 designates top left square. 0-1 or 01 designates top middle square"
+      move = gets
+      row = move.chomp.chars.first.to_i
+      column = move.chomp.chars.last.to_i
+      place_token = game.active_player.place_token row, column, board.game_board
+      game.switch_players
+      game.check_winner
+    end
+end
 
-board.render_board
-game.check_winner
+play

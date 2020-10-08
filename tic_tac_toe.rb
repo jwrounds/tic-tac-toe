@@ -21,9 +21,11 @@
 
 class Board
   attr_reader :game_board
+  attr_accessor :is_full
 
   def initialize   
     @game_board = []
+    @is_full = false
     self.build_board
   end
 
@@ -54,9 +56,12 @@ class Board
   end
 
   def is_full?
-    self.game_board.reduce(false) do |memo, row|
-      row.include? false ? memo : true
+    self.is_full = self.game_board.each do |row|
+      if row.include? false 
+        return false
+      end
     end
+    self.is_full = true
   end
 
 end
@@ -71,23 +76,25 @@ class Token
 end
 
 class Player 
-  attr_accessor :tokens, :move_made
-  attr_reader :name
+  attr_accessor :move_made
+  attr_reader :name, :symbol
 
-  def initialize name 
+  def initialize name, symbol 
     @name = name
-    @tokens = []
     @move_made = false
+    @symbol = symbol
   end
 
   def place_token space_key_one, space_key_two, board
-    token = self.tokens.shift
+    token = Token.new self.name, self.symbol
     if board[space_key_one][space_key_two]
-      puts "\nPlease select an empty space.
-            \n"
+      puts " \n#{self.name} attempted to place a token"
+      puts " \nPlease select an empty space.\n "
     else  
+      puts " \n#{self.name} placed a token\n "
       board[space_key_one][space_key_two] = token
-      @move_made = true
+      self.move_made = true
+      
     end
   end
 
@@ -102,14 +109,6 @@ class Game
     @winner = false
     @board = board
     @active_player = player_one
-    self.give_tokens player_one, "X"
-    self.give_tokens player_two, "O"
-  end
-
-  def give_tokens player, symbol
-    5.times do 
-      player.tokens.push Token.new(player, symbol)
-    end
   end
 
   def switch_players
@@ -227,10 +226,18 @@ class Game
       self.check_horizontal(self.board.game_board) || self.check_vertical(self.board.game_board) || self.check_diagonal(self.board.game_board)
     if self.winner
       self.board.render_board
-      puts "#{self.winner.name} wins!"
+      puts "#{self.winner} wins!"
     elsif self.board.is_full?
-      puts "Tie game! No one wins!"
+      puts "Tie game! No one wins!\n************
+      \n"
+      self.winner = "Tie"
     end
+  end
+
+  def reset_turn
+    self.switch_players
+    self.check_winner
+    self.active_player.move_made = false
   end
 
 end
@@ -238,25 +245,27 @@ end
 def play
     puts "Enter player one's name:"
     player_one_name = gets 
-    player_one = Player.new player_one_name.chomp
+    player_one = Player.new player_one_name.chomp, "X"
     
     puts "Enter player two's name:"
     player_two_name = gets 
-    player_two = Player.new player_two_name.chomp
+    player_two = Player.new player_two_name.chomp, "O"
+    p player_two.name
     
     board = Board.new 
     game = Game.new player_one, player_two, board
     
 
     until game.winner
-      board.render_board
-      puts "Enter the coordinates of the space you'd like place your token. Exmple: 0-0 or 00 designates top left square. 0-1 or 01 designates top middle square"
-      move = gets
-      row = move.chomp.chars.first.to_i
-      column = move.chomp.chars.last.to_i
-      place_token = game.active_player.place_token row, column, board.game_board
-      game.switch_players
-      game.check_winner
+      until game.active_player.move_made
+        board.render_board
+        puts "Enter the coordinates of the space you'd like place your token. Exmple: 0-0 or 00 designates top left square. 0-1 or 01 designates top middle square\n "
+        move = gets
+        row = move.chomp.chars.first.to_i
+        column = move.chomp.chars.last.to_i
+        game.active_player.place_token row, column, board.game_board
+      end
+      game.reset_turn
     end
 end
 
